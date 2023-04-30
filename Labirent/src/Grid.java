@@ -1,8 +1,7 @@
 import javax.swing.*;
 import java.awt.*;
-import java.util.ArrayList;
-import java.util.Random;
-import java.util.Stack;
+import java.util.*;
+import java.util.List;
 
 import javax.swing.JPanel;
 
@@ -117,30 +116,49 @@ public class Grid extends JFrame { // Labirentin çerçevesini oluşturacak sın
         }
     }
 
-    public void solveMaze() {
-        Block currentBlock = blocks[0][0];
+    public void solveMazeDFS() {
+        Block startBlock = blocks[0][0];
+        Block endBlock = blocks[rows-1][cols-1];
         Stack<Block> stack = new Stack<>();
-        stack.push(currentBlock);
+        Set<Block> visited = new HashSet<>();
+        Map<Block, Block> cameFrom = new HashMap<>();
+
+        stack.push(startBlock);
+        visited.add(startBlock);
 
         while (!stack.isEmpty()) {
-            currentBlock = stack.pop();
+            Block currentBlock = stack.pop();
             currentBlock.mazeVisited(true);
 
-            if (currentBlock == blocks[rows-1][cols-1]) {
+            if (currentBlock == endBlock) {
                 System.out.println("Maze solved!");
+                // reconstruct path
+                List<Block> path = new ArrayList<>();
+                path.add(endBlock);
+                while (cameFrom.containsKey(currentBlock)) {
+                    currentBlock = cameFrom.get(currentBlock);
+                    path.add(currentBlock);
+                }
+                Collections.reverse(path);
+                // highlight path
+                for (Block block : path) {
+                    block.setBackground(Color.YELLOW);
+                }
                 return;
             }
 
-            Block newCurrentBlock = currentBlock.pickRandomNeighbor();
-            if (newCurrentBlock != null) {
-                stack.push(currentBlock);
-                newCurrentBlock.mazeVisited(true);
-                stack.push(newCurrentBlock);
+            for (Block neighbor : currentBlock.getNeighbors()) {
+                if (!visited.contains(neighbor) && !neighbor.hasAnyWalls()) {
+                    visited.add(neighbor);
+                    cameFrom.put(neighbor, currentBlock);
+                    stack.push(neighbor);
+                }
             }
         }
 
         System.out.println("Maze cannot be solved!");
     }
+
 
 
     /**
@@ -244,6 +262,7 @@ public class Grid extends JFrame { // Labirentin çerçevesini oluşturacak sın
             int randomIndex = new Random().nextInt(unvisitedNeighbors.size());
             return unvisitedNeighbors.get(randomIndex);
         }
+
 
 
     }

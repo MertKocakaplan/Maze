@@ -2,37 +2,79 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.*;
 import java.util.List;
-
+import javax.swing.Timer;
 import javax.swing.JPanel;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 
-public class Grid extends JFrame { // Labirentin çerçevesini oluşturacak sınıf
+public class Grid extends JFrame {
 
-    final int rows = 30;      // Satır sayısı
-    final int cols = 30;      // Sütun sayısı
+    int rows = 30;
+    int cols = 30;
     private final Stack<Block> blockStack = new Stack<>();
-    Block[][] blocks;          // Griddeki blokların dizisi
-    private JPanel gridPanel;  // Gridin UI da görüntüsü için
+    Block[][] blocks;
+    private JPanel gridPanel;
     private Block currentBlock;
+    private JPanel controlPanel;
 
-    /**
-     * Gridin ekran çıktısını gösterir, metodları çağırır.
-     */
+    private boolean stopSolving = false;
 
     public Grid() {
-        setTitle("Labirent");
+        setTitle("Maze");
         setSize(900, 700);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         initializeGrid();
-        setVisible(true);       // pencereyi görünür yapar
+        initializeControlPanel();
+        pack();
+        setVisible(true);
         generateMaze();
-        solveMaze();
-
-
     }
-
 
     public static void main(String[] args) {
         new Grid();
+    }
+
+    private void initializeControlPanel() {
+        controlPanel = new JPanel();
+
+        JComboBox<Integer> rowsComboBox = new JComboBox<>(new Integer[]{10, 20, 30, 40, 50, 60, 70, 80, 90, 100});
+        rowsComboBox.setSelectedItem(rows);
+        controlPanel.add(new JLabel("Rows:"));
+        controlPanel.add(rowsComboBox);
+
+        JComboBox<Integer> colsComboBox = new JComboBox<>(new Integer[]{10, 20, 30, 40, 50, 60 ,70, 80, 90 ,100});
+        colsComboBox.setSelectedItem(cols);
+        controlPanel.add(new JLabel("Columns:"));
+        controlPanel.add(colsComboBox);
+
+        JButton regenerateButton = new JButton("Regenerate Maze");
+        regenerateButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                stopSolving = true;
+                gridPanel.removeAll();
+                initializeGrid();
+                rows = (Integer) rowsComboBox.getSelectedItem();
+                cols = (Integer) colsComboBox.getSelectedItem();
+                generateMaze();
+                gridPanel.revalidate();
+                gridPanel.repaint();
+                stopSolving = false;
+            }
+        });
+        controlPanel.add(regenerateButton);
+
+        JButton solveButton = new JButton("Solve Maze");
+        solveButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                mazeSolver();
+            }
+        });
+
+        controlPanel.add(solveButton);
+
+        add(controlPanel, BorderLayout.SOUTH);
     }
 
     private void initializeGrid() {
@@ -47,12 +89,10 @@ public class Grid extends JFrame { // Labirentin çerçevesini oluşturacak sın
                 blocks[i][j] = block;
                 gridPanel.add(block);
 
-
                 if (i == 0 && j == 0) {
                     block.setTopWall(false);
                     block.setBackground(Color.GREEN);
                 }
-
 
                 if (i == rows - 1 && j == cols - 1) {
                     block.setBottomWall(false);
@@ -60,7 +100,6 @@ public class Grid extends JFrame { // Labirentin çerçevesini oluşturacak sın
                 }
             }
         }
-
 
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < cols; j++) {
@@ -71,14 +110,10 @@ public class Grid extends JFrame { // Labirentin çerçevesini oluşturacak sın
         add(gridPanel);
     }
 
-    /**
-     * recursive backtracking algorithm kullanarak labirenti oluşturur
-     */
     private void generateMaze() {
         currentBlock = blocks[0][0];
         currentBlock.setVisited(true);
         blockStack.push(currentBlock);
-
         while (!blockStack.isEmpty()) {
             Block nextCurrent = currentBlock.pickRandomNeighbor();
 
@@ -91,10 +126,7 @@ public class Grid extends JFrame { // Labirentin çerçevesini oluşturacak sın
                 currentBlock = blockStack.pop();
             }
         }
-
-
     }
-
 
     private void removeWall(Block a, Block b) {
         if (a.thisRow == b.thisRow) {
@@ -116,9 +148,28 @@ public class Grid extends JFrame { // Labirentin çerçevesini oluşturacak sın
         }
     }
 
-    public void solveMazeDFS() {
+    public List<Block> getNeighbors(Block block) {
+        List<Block> neighbors = new ArrayList<>();
+
+        if (block.thisRow > 0 && !block.topWall) {
+            neighbors.add(blocks[block.thisRow - 1][block.thisCol]);
+        }
+        if (block.thisCol < cols - 1 && !block.rightWall) {
+            neighbors.add(blocks[block.thisRow][block.thisCol + 1]);
+        }
+        if (block.thisRow < rows - 1 && !block.bottomWall) {
+            neighbors.add(blocks[block.thisRow + 1][block.thisCol]);
+        }
+        if (block.thisCol > 0 && !block.leftWall) {
+            neighbors.add(blocks[block.thisRow][block.thisCol - 1]);
+        }
+
+        return neighbors;
+    }
+
+    public void mazeSolver() {
         Block startBlock = blocks[0][0];
-        Block endBlock = blocks[rows-1][cols-1];
+        Block endBlock = blocks[rows - 1][cols - 1];
         Stack<Block> stack = new Stack<>();
         Set<Block> visited = new HashSet<>();
         Map<Block, Block> cameFrom = new HashMap<>();
@@ -126,44 +177,65 @@ public class Grid extends JFrame { // Labirentin çerçevesini oluşturacak sın
         stack.push(startBlock);
         visited.add(startBlock);
 
-        while (!stack.isEmpty()) {
-            Block currentBlock = stack.pop();
-            currentBlock.mazeVisited(true);
+        int delay = 20;
 
-            if (currentBlock == endBlock) {
-                System.out.println("Maze solved!");
-                // reconstruct path
-                List<Block> path = new ArrayList<>();
-                path.add(endBlock);
-                while (cameFrom.containsKey(currentBlock)) {
-                    currentBlock = cameFrom.get(currentBlock);
-                    path.add(currentBlock);
+        Timer timer = new Timer(delay, null);
+        timer.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+
+                if (stopSolving) {
+                    timer.stop();
+                    return;
                 }
-                Collections.reverse(path);
-                // highlight path
-                for (Block block : path) {
-                    block.setBackground(Color.YELLOW);
+
+                Block currentBlock = stack.pop();
+
+                if (currentBlock == endBlock) {
+                    System.out.println("Maze solved!");
+                    timer.stop();
+
+                    List<Block> path = new ArrayList<>();
+                    Block pathBlock = currentBlock;
+                    while (pathBlock != null) {
+                        path.add(pathBlock);
+                        pathBlock = cameFrom.get(pathBlock);
+                    }
+                    Collections.reverse(path);
+
+                    for (Block block : visited) {
+                        if (!path.contains(block)) {
+                            block.setBackground(null);
+                        }
+                    }
+
+                    for (Block block : path) {
+                        block.setBackground(Color.GREEN);
+                    }
+                    return;
                 }
-                return;
+
+                List<Block> neighbors = getNeighbors(currentBlock);
+                for (Block neighbor : neighbors) {
+                    if (!visited.contains(neighbor)) {
+                        visited.add(neighbor);
+                        cameFrom.put(neighbor, currentBlock);
+                        stack.push(neighbor);
+                    }
+                }
+
+                currentBlock.setBackground(Color.darkGray);
             }
+        });
 
-            for (Block neighbor : currentBlock.getNeighbors()) {
-                if (!visited.contains(neighbor) && !neighbor.hasAnyWalls()) {
-                    visited.add(neighbor);
-                    cameFrom.put(neighbor, currentBlock);
-                    stack.push(neighbor);
-                }
-            }
-        }
-
-        System.out.println("Maze cannot be solved!");
+        timer.start();
     }
 
 
 
-    /**
-     * tek bir bloğu tanımlayan sınıf
-     */
+        /**
+         * tek bir bloğu tanımlayan sınıf
+         */
     class Block extends JPanel {
         final Grid grid;
         final int thisRow;
@@ -180,7 +252,6 @@ public class Grid extends JFrame { // Labirentin çerçevesini oluşturacak sın
             setPreferredSize(new Dimension(20, 20));
             this.grid = grid;
             visited = false;
-            solveVisited = false;
             topWall = rightWall = bottomWall = leftWall = true;
             neighbors = new ArrayList<>();
         }
@@ -188,11 +259,6 @@ public class Grid extends JFrame { // Labirentin çerçevesini oluşturacak sın
         public void setVisited(boolean visited) {
             this.visited = visited;
         }
-
-        public void mazeVisited(boolean visited) {
-            this.solveVisited = solveVisited;
-        }
-
         public void setTopWall(boolean topWall) {
             this.topWall = topWall;
         }

@@ -18,7 +18,7 @@ public class Grid extends JFrame {
     private JButton solveButton;
     private boolean stopSolving = false;
     private Timer timer;
-    private int delay = 10; // Varsayýlan delay deðeri
+    private int delay = 10;
 
     public Grid() {
         setTitle("Maze");

@@ -3,7 +3,6 @@ import java.awt.*;
 import java.util.*;
 import java.util.List;
 import javax.swing.Timer;
-import javax.swing.JPanel;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
@@ -16,8 +15,10 @@ public class Grid extends JFrame {
     private JPanel gridPanel;
     private Block currentBlock;
     private JPanel controlPanel;
-
+    private JButton solveButton;
     private boolean stopSolving = false;
+    private Timer timer;
+    private int delay = 10; // Varsayýlan delay deðeri
 
     public Grid() {
         setTitle("Maze");
@@ -42,7 +43,7 @@ public class Grid extends JFrame {
         controlPanel.add(new JLabel("Rows:"));
         controlPanel.add(rowsComboBox);
 
-        JComboBox<Integer> colsComboBox = new JComboBox<>(new Integer[]{10, 20, 30, 40, 50, 60 ,70, 80, 90 ,100});
+        JComboBox<Integer> colsComboBox = new JComboBox<>(new Integer[]{10, 20, 30, 40, 50, 60, 70, 80, 90, 100});
         colsComboBox.setSelectedItem(cols);
         controlPanel.add(new JLabel("Columns:"));
         controlPanel.add(colsComboBox);
@@ -52,6 +53,10 @@ public class Grid extends JFrame {
             @Override
             public void actionPerformed(ActionEvent e) {
                 stopSolving = true;
+                if (timer != null) {
+                    timer.stop();
+                    timer = null;
+                }
                 gridPanel.removeAll();
                 initializeGrid();
                 rows = (Integer) rowsComboBox.getSelectedItem();
@@ -64,15 +69,31 @@ public class Grid extends JFrame {
         });
         controlPanel.add(regenerateButton);
 
-        JButton solveButton = new JButton("Solve Maze");
+        solveButton = new JButton("Solve Maze");
         solveButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                mazeSolver();
+                if (solveButton.getText().equals("Solve Maze")) {
+                    solveButton.setText("Stop Solving");
+                    stopSolving = false;
+                    mazeSolver();
+                } else {
+                    solveButton.setText("Solve Maze");
+                    stopSolving = true;
+                }
             }
         });
-
         controlPanel.add(solveButton);
+
+        // Delay slider ekle
+        JSlider delaySlider = new JSlider(0, 100, delay);
+        delaySlider.setMajorTickSpacing(10);
+        delaySlider.setMinorTickSpacing(1);
+        delaySlider.setPaintTicks(true);
+        delaySlider.setPaintLabels(true);
+        delaySlider.addChangeListener(e -> delay = delaySlider.getValue());
+        controlPanel.add(new JLabel("Delay:"));
+        controlPanel.add(delaySlider);
 
         add(controlPanel, BorderLayout.SOUTH);
     }
@@ -148,7 +169,7 @@ public class Grid extends JFrame {
         }
     }
 
-    public List<Block> getNeighbors(Block block) {
+    List<Block> getNeighbors(Block block) {
         List<Block> neighbors = new ArrayList<>();
 
         if (block.thisRow > 0 && !block.topWall) {
@@ -177,14 +198,13 @@ public class Grid extends JFrame {
         stack.push(startBlock);
         visited.add(startBlock);
 
-        int delay = 20;
-
-        Timer timer = new Timer(delay, null);
+        timer = new Timer(delay, null); // Delay slider'dan gelen deðeri kullan
         timer.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
 
                 if (stopSolving) {
+                    solveButton.setText("Solve Maze"); // Stop sýrasýnda buton metnini deðiþtir
                     timer.stop();
                     return;
                 }
@@ -193,6 +213,7 @@ public class Grid extends JFrame {
 
                 if (currentBlock == endBlock) {
                     System.out.println("Maze solved!");
+                    solveButton.setText("Solve Maze"); // Çözüm tamamlandýðýnda buton metnini deðiþtir
                     timer.stop();
 
                     List<Block> path = new ArrayList<>();
@@ -231,11 +252,6 @@ public class Grid extends JFrame {
         timer.start();
     }
 
-
-
-        /**
-         * tek bir bloÄŸu tanÄ±mlayan sÄ±nÄ±f
-         */
     class Block extends JPanel {
         final Grid grid;
         final int thisRow;
@@ -259,6 +275,7 @@ public class Grid extends JFrame {
         public void setVisited(boolean visited) {
             this.visited = visited;
         }
+
         public void setTopWall(boolean topWall) {
             this.topWall = topWall;
         }
@@ -274,7 +291,6 @@ public class Grid extends JFrame {
         public void setLeftWall(boolean leftWall) {
             this.leftWall = leftWall;
         }
-
 
         @Override
         protected void paintComponent(Graphics g) {
@@ -295,7 +311,6 @@ public class Grid extends JFrame {
             }
         }
 
-
         public void addNeighbors() {
             if (thisRow > 0) {
                 neighbors.add(grid.blocks[thisRow - 1][thisCol]);
@@ -310,7 +325,6 @@ public class Grid extends JFrame {
                 neighbors.add(grid.blocks[thisRow][thisCol - 1]);
             }
         }
-
 
         public Block pickRandomNeighbor() {
             ArrayList<Block> unvisitedNeighbors = new ArrayList<>();
@@ -328,8 +342,5 @@ public class Grid extends JFrame {
             int randomIndex = new Random().nextInt(unvisitedNeighbors.size());
             return unvisitedNeighbors.get(randomIndex);
         }
-
-
-
     }
 }
